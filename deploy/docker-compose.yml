@@ -1,0 +1,38 @@
+# VPS deployment behind the existing Traefik. Copy .env.example to .env and fill it in.
+# Run ONE replica: Socket.IO and the game state live in memory.
+services:
+  minimax:
+    image: ${IMAGE:-ghcr.io/your-org/robot-minimax:latest}
+    restart: unless-stopped
+    environment:
+      ADMIN_TOKEN: ${ADMIN_TOKEN:?set ADMIN_TOKEN in .env}
+      BRIDGE_TOKEN: ${BRIDGE_TOKEN:?set BRIDGE_TOKEN in .env}
+      DEVICE_HASH_SECRET: ${DEVICE_HASH_SECRET:?set DEVICE_HASH_SECRET in .env}
+      PUBLIC_URL: https://${MINIMAX_HOST}
+      DB_PATH: /data/minimax.db
+      ROBOT_MODE: ${ROBOT_MODE:-sim}
+    volumes:
+      - minimax-data:/data
+    networks: [traefik]
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=${TRAEFIK_NETWORK:-traefik}
+      - traefik.http.services.minimax.loadbalancer.server.port=8000
+      # phones, board, Socket.IO and the bridge API
+      - traefik.http.routers.minimax.rule=Host(`${MINIMAX_HOST}`)
+      - traefik.http.routers.minimax.entrypoints=${TRAEFIK_ENTRYPOINT:-websecure}
+      - traefik.http.routers.minimax.tls.certresolver=${CERT_RESOLVER:?set CERT_RESOLVER in .env}
+      # admin pages: basic auth in front of the admin token (defence in depth)
+      - traefik.http.routers.minimax-admin.rule=Host(`${MINIMAX_HOST}`) && PathPrefix(`/admin`)
+      - traefik.http.routers.minimax-admin.entrypoints=${TRAEFIK_ENTRYPOINT:-websecure}
+      - traefik.http.routers.minimax-admin.tls.certresolver=${CERT_RESOLVER}
+      - traefik.http.routers.minimax-admin.middlewares=minimax-auth
+      - traefik.http.middlewares.minimax-auth.basicauth.users=${ADMIN_HTPASSWD:?set ADMIN_HTPASSWD in .env}
+
+volumes:
+  minimax-data:
+
+networks:
+  traefik:
+    external: true
+    name: ${TRAEFIK_NETWORK:-traefik}

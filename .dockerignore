@@ -1,0 +1,16 @@
+**/node_modules
+**/__pycache__
+**/*.pyc
+**/.pytest_cache
+web/dist
+server/.venv
+server/data
+**/*.db
+**/*.db-wal
+**/*.db-shm
+bridge
+tools
+deploy
+.git
+docs
+.github

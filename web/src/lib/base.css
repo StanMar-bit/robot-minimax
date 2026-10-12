@@ -1,0 +1,50 @@
+:root {
+  --font: 'Avenir Next', Avenir, 'Segoe UI', system-ui, -apple-system, Roboto, 'Helvetica Neue', sans-serif;
+  --bg: #ffffff;
+  --panel: #f4f4f5;
+  --ink: #111827;
+  --muted: #6b7280;
+  --line: #e4e4e7;
+  --max: #2563eb;
+  --min: #ea580c;
+  --ok: #16a34a;
+  --bad: #dc2626;
+  --warn: #b45309;
+  --accent: #3730a3;
+  --search: #7c3aed;
+  --cell: #ffffff;
+  --visited: #d4d4d8;
+  --hover: #e0e7ff;
+  color-scheme: light;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font);
+  -webkit-font-smoothing: antialiased;
+  -webkit-text-size-adjust: 100%;
+}
+
+button {
+  font: inherit;
+  color: inherit;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}

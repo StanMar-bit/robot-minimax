@@ -10,3 +10,6 @@ server/data/
 *.db-shm
 deploy/.env
 *.log
+
+# server-specific compose files (the generic deploy/docker-compose.yml stays tracked)
+deploy/docker-compose.*.yml

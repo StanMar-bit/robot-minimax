@@ -12,7 +12,8 @@ on one machine and only indicative across machines):
   server/.venv/bin/python tools/loadtest.py --url http://127.0.0.1:8000 --admin-token ... --clients 150
 
 It starts a new game (variant 2) and changes the vote time and thinking time, so do not
-run it against a lecture in progress.
+run it against a lecture in progress. The original settings and robot mode are put back
+at the end; the test rounds stay in the export.
 """
 
 from __future__ import annotations
@@ -97,7 +98,6 @@ class Phone:
 
 
 async def run(args: argparse.Namespace) -> int:
-    failures: list[str] = []
     admin = socketio.AsyncClient()
     await admin.connect(args.url, auth={"role": "admin", "token": args.admin_token}, transports=["websocket"])
     await admin.call("hello", {"device_id": "loadtest-admin"})
@@ -110,6 +110,18 @@ async def run(args: argparse.Namespace) -> int:
 
     board = Board(args.url)
     await board.start()
+    before = await board.wait(lambda s: True)
+    try:
+        return await exercise(args, adm, board)
+    finally:
+        await adm("settings", **before["settings"])
+        await adm("mode", mode=before["robot"]["mode"])
+        await board.sio.disconnect()
+        await admin.disconnect()
+
+
+async def exercise(args: argparse.Namespace, adm, board: Board) -> int:
+    failures: list[str] = []
     phones = [Phone(args.url, polling=i < args.clients * args.polling_share) for i in range(args.clients)]
     t0 = time.perf_counter()
     await asyncio.gather(*(p.connect() for p in phones))
@@ -190,8 +202,6 @@ async def run(args: argparse.Namespace) -> int:
         failures.append("board latency p95 above 500 ms")
     for p in phones:
         await p.disconnect()
-    await board.sio.disconnect()
-    await admin.disconnect()
     if failures:
         print(f"\nFAILED ({len(failures)}):")
         for f in failures[:20]:

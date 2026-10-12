@@ -9,6 +9,7 @@ services:
       BRIDGE_TOKEN: ${BRIDGE_TOKEN:?set BRIDGE_TOKEN in .env}
       DEVICE_HASH_SECRET: ${DEVICE_HASH_SECRET:?set DEVICE_HASH_SECRET in .env}
       PUBLIC_URL: https://${MINIMAX_HOST}
+      CORS_ORIGINS: https://${MINIMAX_HOST}   # Socket.IO rejects the WebSocket upgrade behind Traefik without it
       DB_PATH: /data/minimax.db
       ROBOT_MODE: ${ROBOT_MODE:-sim}
     volumes:

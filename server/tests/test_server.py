@@ -192,3 +192,15 @@ async def test_bridge_api(server):
         r = await http.get("/admin/api/export", params={"token": ADMIN})
         assert r.status_code == 200 and "games" in r.json()
     await admin.sio.disconnect()
+
+
+async def test_board_phone_count_follows_connects(server):
+    board = Client(server, "board", device="count-board")
+    await board.connect()
+    before = (await board.wait(lambda s: True))["clients"]["phones"]
+    phone = Client(server, device="count-phone")
+    await phone.connect()
+    await board.wait(lambda s: s["clients"]["phones"] == before + 1)
+    await phone.sio.disconnect()
+    await board.wait(lambda s: s["clients"]["phones"] == before)
+    await board.sio.disconnect()

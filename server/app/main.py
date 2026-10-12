@@ -279,6 +279,7 @@ def create_app(cfg: Config | None = None) -> socketio.ASGIApp:
         hub.clients.pop(sid, None)
         hub._vote_times.pop(sid, None)
         hub.status()
+        hub.state()  # the board shows the phone count from the state snapshot
 
     @sio.event
     async def hello(sid, data):
@@ -296,6 +297,7 @@ def create_app(cfg: Config | None = None) -> socketio.ASGIApp:
         if client["role"] == "admin":
             await sio.emit("status", hub.status_payload(), to=sid)
         hub.status()
+        hub.state()
         return {"ok": True, "server_time": int(time.time() * 1000), "public_url": cfg.public_url,
                 **flow.my_vote(client["hash"])}
 

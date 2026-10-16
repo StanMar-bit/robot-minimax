@@ -6,7 +6,9 @@ each command to nao_driver.py over ZMQ on localhost. Nothing on the robot networ
 has to be reachable from the internet.
 
 Threads:
-  main       GET /bridge/next -> validate -> driver (REQ :5555) -> POST /bridge/result, one command at a time
+  main       GET /bridge/next -> validate -> driver (REQ :5555) -> POST /bridge/result, one command at a time.
+             A `say` marked `hall` is first rendered to audio on the robot and uploaded
+             (POST /bridge/audio), so the board plays it through the hall speakers as the robot speaks.
   priority   GET /bridge/next?channel=priority -> `stop` straight to the driver's control socket (:5556),
              so it can interrupt a walk that is running
   heartbeat  driver status (battery, temperatures) -> POST /bridge/heartbeat every few seconds
@@ -23,7 +25,10 @@ import argparse
 import json
 import logging
 import os
+import base64
 import re
+import shutil
+import subprocess
 import sys
 import threading
 import time
@@ -48,7 +53,7 @@ log = logging.getLogger("bridge")
 HEX = re.compile(r"^#[0-9a-fA-F]{6}$")
 ANIMATIONS = ("think", "win", "lose", "wave")
 # How long the driver may take per command before the bridge gives up on it.
-TIMEOUTS = {"move": 60, "say": 45, "animate": 30, "posture": 30, "nudge": 20, "eyes": 5, "sync": 5, "stop": 10}
+TIMEOUTS = {"move": 60, "say": 45, "render": 20, "animate": 30, "posture": 30, "nudge": 20, "eyes": 5, "sync": 5, "stop": 10}
 
 
 def validate(cmd: str, args: dict[str, Any]) -> tuple[dict[str, Any] | None, str | None]:
@@ -168,6 +173,18 @@ class Server:
         r.raise_for_status()
         return r.json()
 
+    def post_audio(self, cmd_id: int, audio: bytes, content_type: str) -> bool:
+        """One try only: a late clip is worse than none."""
+        try:
+            r = self.http.post(f"{self.url}/bridge/audio", params={"cmd_id": cmd_id}, data=audio,
+                               headers={"Content-Type": content_type}, timeout=(5, 10))
+            if r.status_code < 300:
+                return True
+            log.warning("POST /bridge/audio -> HTTP %s: %s", r.status_code, r.text[:200])
+        except requests.RequestException as e:
+            log.warning("POST /bridge/audio failed: %s", e)
+        return False
+
     def post(self, path: str, payload: dict[str, Any], retry: bool = True) -> bool:
         delay = 1.0
         while not self.stop.is_set():
@@ -185,6 +202,44 @@ class Server:
             time.sleep(delay)
             delay = min(delay * 2, 10)
         return False
+
+
+class HallAudio:
+    """Speech for the hall speakers: rendered on the robot in its own voice, MP3 when ffmpeg is
+    available (a tenth of the WAV size), and kept per text so a repeated line costs nothing."""
+
+    def __init__(self, server: Server, driver: DriverClient) -> None:
+        self.server, self.driver = server, driver
+        self.cache: dict[str, tuple[bytes, str]] = {}
+        self.ffmpeg = shutil.which("ffmpeg")
+        if not self.ffmpeg:
+            log.info("ffmpeg not found; the hall gets WAV audio")
+
+    def send(self, cmd_id: int, text: str) -> None:
+        t0 = time.time()
+        clip = self.cache.get(text)
+        if clip is None:
+            reply = self.driver.request({"cmd": "render", "text": text}, TIMEOUTS["render"])
+            wav = (reply.get("data") or {}).get("wav") if reply.get("ok") else None
+            if not wav:
+                log.warning("no hall audio for %s: %s", cmd_id, reply.get("error") or "the driver has no robot voice")
+                return
+            clip = self._encode(base64.b64decode(wav))
+            if len(self.cache) > 300:
+                self.cache.clear()
+            self.cache[text] = clip
+        if self.server.post_audio(cmd_id, *clip):
+            log.info("hall audio for %s: %d KB in %.2f s", cmd_id, len(clip[0]) // 1024, time.time() - t0)
+
+    def _encode(self, wav: bytes) -> tuple[bytes, str]:
+        if self.ffmpeg:
+            try:
+                mp3 = subprocess.run([self.ffmpeg, "-loglevel", "error", "-i", "pipe:0", "-ac", "1", "-b:a", "64k",
+                                      "-f", "mp3", "pipe:1"], input=wav, capture_output=True, timeout=10, check=True)
+                return mp3.stdout, "audio/mpeg"
+            except (subprocess.SubprocessError, OSError) as e:
+                log.warning("ffmpeg failed (%s); sending WAV", e)
+        return wav, "audio/wav"
 
 
 def poll_loop(name: str, server: Server, channel: str, last: int, handle, stop: threading.Event) -> None:
@@ -208,6 +263,7 @@ def poll_loop(name: str, server: Server, channel: str, last: int, handle, stop: 
 
 
 def main_channel(server: Server, driver: DriverClient, state: State, stop: threading.Event) -> None:
+    hall = HallAudio(server, driver)
     if state.last_started > state.last_done:
         cid = state.last_started
         log.warning("command %s was running when the bridge stopped; reporting it as failed", cid)
@@ -234,6 +290,8 @@ def main_channel(server: Server, driver: DriverClient, state: State, stop: threa
             reply = {"ok": False, "error": f"refused by bridge: {err}"}
         else:
             log.info("-> %s %s", cid, msg)
+            if msg["cmd"] == "say" and (cmd.get("args") or {}).get("hall"):
+                hall.send(cid, msg["text"])
             reply = driver.request(msg, TIMEOUTS.get(msg["cmd"], 20))
         result = {
             "cmd_id": cid,

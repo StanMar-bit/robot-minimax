@@ -150,8 +150,12 @@ def chain(request, server, tmp_path):
 async def test_full_game_through_bridge(chain):
     admin = Client(chain["server"], "admin", "adm", "adm")
     phone = Client(chain["server"], device="ph")
+    board = Client(chain["server"], "board", device="bd")
+    clips = []
+    board.sio.on("speak", clips.append)
     await admin.connect()
     await phone.connect()
+    await board.connect()
     # wait until the bridge reports in, with battery from the driver
     deadline = time.monotonic() + 15
     while not (admin.status and admin.status["bridge"]["online"] and admin.status["bridge"]["battery"]):
@@ -183,8 +187,12 @@ async def test_full_game_through_bridge(chain):
         assert any(t.startswith("I evaluated") for t in said)
         assert said[-1] == "You win. Well played!"
         assert all(e["outcome"] == "done" for e in lines)
+        # every line was rendered for the hall before the robot said it, and reached the board as audio
+        assert [e["text"] for e in lines if e["cmd"] == "render"] == said
+        assert len(clips) == len(said) and all(c["audio"] and c["type"] in ("audio/mpeg", "audio/wav") for c in clips)
     await admin.sio.disconnect()
     await phone.sio.disconnect()
+    await board.sio.disconnect()
 
 
 async def test_stop_interrupts_walk_and_admin_recovers(chain):

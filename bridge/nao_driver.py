@@ -60,7 +60,7 @@ def validate(msg):
             return "cells must be A-I"
         if b not in NEIGHBOURS[a]:
             return "%s and %s are not adjacent" % (a, b)
-    elif cmd == "say":
+    elif cmd in ("say", "render"):
         if not isinstance(msg.get("text"), (str, type(u""))) or not msg["text"].strip() or len(msg["text"]) > 300:
             return "text must be 1-300 characters"
     elif cmd == "animate":
@@ -149,6 +149,8 @@ class Driver(object):
                 data = r.move(msg["from"], msg["to"], poll)
             elif cmd == "say":
                 data = r.say(msg["text"], poll)
+            elif cmd == "render":
+                data = r.render(msg["text"])
             elif cmd == "animate":
                 data = r.animate(msg["name"], poll)
             elif cmd == "eyes":
@@ -216,6 +218,9 @@ def main():
     p.add_argument("--max-step-x", type=float, help="ALMotion MaxStepX (m), e.g. 0.04")
     p.add_argument("--step-frequency", type=float, help="ALMotion MaxStepFrequency (0-1)")
     p.add_argument("--odometry-log", help="append expected vs. odometry per move to this CSV (drift test)")
+    p.add_argument("--ssh-user", default="nao", help="SSH login on the robot, to fetch rendered speech for the hall")
+    p.add_argument("--ssh-password", default=os.environ.get("NAO_SSH_PASSWORD", "nao"),
+                   help="SSH password (default: $NAO_SSH_PASSWORD or 'nao'); empty to use an SSH key")
     p.add_argument("--no-setup", action="store_true", help="skip Autonomous Life off / wake up / StandInit")
     p.add_argument("-v", "--verbose", action="store_true")
     args = p.parse_args()
@@ -240,7 +245,8 @@ def main():
         try:
             robot = Robot(args.nao_ip, args.nao_port, cell_size=args.cell_size, walk=args.walk,
                           row_sign=args.row_sign, col_sign=args.col_sign, sim=args.sim, volume=args.volume,
-                          move_config=move_config, odometry_log=args.odometry_log, sim_speed=args.sim_speed)
+                          move_config=move_config, odometry_log=args.odometry_log, sim_speed=args.sim_speed,
+                          ssh_user=args.ssh_user, ssh_password=args.ssh_password or None)
             break
         except RuntimeError as e:
             log.error("%s. Retrying in 5 s (Ctrl+C to quit).", e)

@@ -11,14 +11,27 @@ Actions take (scaled) time and a running walk can be stopped.
 from __future__ import annotations
 
 import argparse
+import base64
+import io
 import json
 import logging
 import time
+import wave
 
 import zmq
 
 NEIGHBOURS = {"A": "BD", "B": "ACE", "C": "BF", "D": "AEG", "E": "BDFH", "F": "CEI", "G": "DH", "H": "EGI", "I": "FH"}
 log = logging.getLogger("fake_driver")
+
+
+def silent_wav(seconds: float, rate: int = 16000) -> bytes:
+    buf = io.BytesIO()
+    with wave.open(buf, "wb") as w:
+        w.setnchannels(1)
+        w.setsampwidth(2)
+        w.setframerate(rate)
+        w.writeframes(b"\0\0" * int(seconds * rate))
+    return buf.getvalue()
 
 
 class FakeDriver:
@@ -93,6 +106,9 @@ class FakeDriver:
                 return self.reply(True, data={"cell": self.cell})
             if cmd == "say":
                 ok = self.act(0.5 + 0.04 * len(msg.get("text", "")))
+            elif cmd == "render":
+                self.record(msg, "done")
+                return self.reply(True, data={"wav": base64.b64encode(silent_wav(0.2)).decode("ascii")})
             elif cmd in ("animate", "posture"):
                 ok = self.act(2.0)
             elif cmd == "nudge":

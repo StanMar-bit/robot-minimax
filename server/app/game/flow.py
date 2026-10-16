@@ -51,6 +51,7 @@ class Settings:
     live_votes: bool = False         # show counts during voting (blind by default)
     sim_move_s: float = 1.6          # no-robot mode: board animation time per move
     speech: bool = True
+    hall_audio: bool = True          # the board also plays the robot's speech, for the hall speakers
 
     CHOICES = {"tie_break": ("random", "first", "admin"), "algorithm": ("minimax", "alphabeta"),
                "values": ("hidden", "leaves", "all")}
@@ -224,8 +225,10 @@ class Flow:
         """Queue a robot command, only in robot mode."""
         if self.robot.mode != "robot":
             return None
-        if cmd == "say" and not self.settings.speech:
-            return None
+        if cmd == "say":
+            if not self.settings.speech:
+                return None
+            args["hall"] = self.settings.hall_audio
         if cmd == "eyes":
             if args.get("color") == self._eyes:
                 return None

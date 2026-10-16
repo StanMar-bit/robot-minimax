@@ -165,7 +165,7 @@ async def test_bridge_api(server):
         r = await http.get("/bridge/next", params={"timeout": 1, "last": last}, headers=h)
         assert r.status_code == 200
         cmd = r.json()
-        assert cmd["cmd"] == "say" and cmd["args"] == {"text": "Hello class"} and cmd["cmd_id"] == res["cmd_id"]
+        assert cmd["cmd"] == "say" and cmd["args"] == {"text": "Hello class", "hall": True} and cmd["cmd_id"] == res["cmd_id"]
         # not acknowledged yet: polling again with the same `last` returns it again
         r2 = await http.get("/bridge/next", params={"timeout": 0.1, "last": last}, headers=h)
         assert r2.json()["cmd_id"] == cmd["cmd_id"]

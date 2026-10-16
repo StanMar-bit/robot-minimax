@@ -256,6 +256,7 @@
         <label class="field">Max thinking time (s)
           <input type="number" min="1" max="120" value={settings.think_max_s} onchange={(e) => set('think_max_s', +e.currentTarget.value)} /></label>
         <label class="check"><input type="checkbox" checked={settings.speech} onchange={(e) => set('speech', e.currentTarget.checked)} /> Robot speaks</label>
+        <label class="check"><input type="checkbox" checked={settings.hall_audio} onchange={(e) => set('hall_audio', e.currentTarget.checked)} /> Also play the robot's voice on the board (hall speakers)</label>
         <div class="row">
           <button onclick={() => cmd('replay', { algorithm: 'minimax', from_root: true })}>Replay minimax from root</button>
           <button onclick={() => cmd('replay', { algorithm: 'alphabeta', from_root: true })}>Replay alpha-beta from root</button>

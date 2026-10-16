@@ -2,12 +2,13 @@
   // Projector view (1920×1080): grid mirror and turn on the left, game tree on the right.
   import Countdown from '../lib/Countdown.svelte';
   import Grid from '../lib/Grid.svelte';
+  import HallAudio from '../lib/HallAudio.svelte';
   import Qr from '../lib/Qr.svelte';
   import Tree from '../lib/Tree.svelte';
   import { banner, fmtValue, setupLabel, who } from '../lib/labels.js';
   import { connect, serverNow } from '../lib/live.svelte.js';
 
-  const { live } = connect({ role: 'board' });
+  const { live, socket } = connect({ role: 'board' });
 
   let now = $state(Date.now());
   $effect(() => {
@@ -163,6 +164,8 @@
       {/if}
     </div>
   </section>
+
+  <HallAudio {socket} />
 
   {#if !live.connected}
     <div class="offline">{live.everConnected ? 'Reconnecting…' : 'Connecting…'}</div>

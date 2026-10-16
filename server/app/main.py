@@ -111,6 +111,12 @@ class Hub:
     def search(self, payload: dict[str, Any]) -> None:
         asyncio.ensure_future(self.sio.emit("search", payload, room="boards"))
 
+    def hall_audio(self, cmd_id: int, audio: bytes, content_type: str) -> None:
+        """The robot's speech for one say command; the board plays it through the hall speakers."""
+        if self.flow.settings.hall_audio:
+            payload = {"cmd_id": cmd_id, "audio": audio, "type": content_type}
+            asyncio.ensure_future(self.sio.emit("speak", payload, room="boards"))
+
     def status(self) -> None:
         if self._status_pending:
             return
@@ -220,7 +226,7 @@ def create_app(cfg: Config | None = None) -> socketio.ASGIApp:
 
     api = FastAPI(title="Robot minimax demo", lifespan=lifespan, docs_url=None, redoc_url=None)
     api.state.hub = hub
-    api.include_router(make_router(robot, cfg.bridge_token, cfg.bridge_poll_timeout))
+    api.include_router(make_router(robot, cfg.bridge_token, cfg.bridge_poll_timeout, on_audio=hub.hall_audio))
 
     @api.get("/healthz")
     async def healthz():
@@ -348,7 +354,7 @@ def create_app(cfg: Config | None = None) -> socketio.ASGIApp:
             text = str(args.get("text", "")).strip()[:300]
             if not text:
                 raise ValueError("nothing to say")
-            return {"cmd_id": await robot.send("say", text=text)}
+            return {"cmd_id": await robot.send("say", text=text, hall=flow.settings.hall_audio)}
         if cmd == "animate":
             if args.get("name") not in ANIMATIONS:
                 raise ValueError(f"animation must be one of {ANIMATIONS}")

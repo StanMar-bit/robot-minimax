@@ -38,6 +38,8 @@ ANIMATIONS = {
     "wave": ["animations/Stand/Gestures/Hey_1", "animations/Stand/Gestures/Hey_6"],
 }
 ANIMATION_TAGS = {"think": "thinking", "win": "happy", "lose": "sad", "wave": "hello"}
+# Moves choreographed here with joint keyframes instead of built-in animations.
+ROUTINES = ("dance", "handshake")
 LEG_JOINTS = ["LHipYawPitch", "LHipRoll", "LHipPitch", "LKneePitch", "LAnklePitch", "LAnkleRoll",
               "RHipRoll", "RHipPitch", "RKneePitch", "RAnklePitch", "RAnkleRoll"]
 
@@ -75,6 +77,102 @@ def to_robot_frame(x, y, heading):
 def hex_to_rgb_int(color):
     color = color.lstrip("#")
     return int(color, 16)
+
+
+# Choreography ---------------------------------------------------------------------
+# Poses are {joint: angle in radians}. Only the head and arms move, so the robot
+# keeps both feet planted and cannot lose its balance during a routine.
+
+# Left/right joint pairs: angles that move sideways change sign in the mirror image.
+_MIRROR_NEGATE = ("ShoulderRoll", "ElbowRoll", "ElbowYaw", "WristYaw", "HeadYaw")
+
+
+def mirror(pose):
+    """The same pose with left and right swapped."""
+    out = {}
+    for joint, angle in pose.items():
+        if joint[0] == "L":
+            joint = "R" + joint[1:]
+        elif joint[0] == "R":
+            joint = "L" + joint[1:]
+        if joint.endswith(_MIRROR_NEGATE):
+            angle = -angle
+        out[joint] = angle
+    return out
+
+
+def merge(*poses):
+    out = {}
+    for p in poses:
+        out.update(p)
+    return out
+
+
+def keyframes(frames):
+    """[(t, pose), ...] -> (names, angles, times) for ALMotion.angleInterpolation."""
+    tracks = {}
+    for t, pose in frames:
+        for joint, angle in pose.items():
+            angles, times = tracks.setdefault(joint, ([], []))
+            angles.append(angle)
+            times.append(t)
+    names = sorted(tracks)
+    return names, [tracks[n][0] for n in names], [tracks[n][1] for n in names]
+
+
+ARMS_REST = merge({"LShoulderPitch": 1.45, "LShoulderRoll": 0.2, "LElbowYaw": -1.2, "LElbowRoll": -0.5},
+                  {"RShoulderPitch": 1.45, "RShoulderRoll": -0.2, "RElbowYaw": 1.2, "RElbowRoll": 0.5})
+L_HAND_ON_HIP = {"LShoulderPitch": 1.6, "LShoulderRoll": 0.6, "LElbowYaw": -0.6, "LElbowRoll": -1.4}
+R_POINT_UP = {"RShoulderPitch": -1.2, "RShoulderRoll": -0.9, "RElbowYaw": 1.2, "RElbowRoll": 0.05}
+R_POINT_DOWN = {"RShoulderPitch": 1.0, "RShoulderRoll": 0.25, "RElbowYaw": 1.2, "RElbowRoll": 0.05}
+LOOK_UP_RIGHT = {"HeadYaw": -0.4, "HeadPitch": -0.3}
+LOOK_DOWN_LEFT = {"HeadYaw": 0.2, "HeadPitch": 0.25}
+# "Robot" pump: elbows bent, one upper arm forward while the other goes back.
+PUMP = merge({"LShoulderPitch": 0.6, "LShoulderRoll": 0.15, "LElbowYaw": -1.4, "LElbowRoll": -1.4},
+             {"RShoulderPitch": 1.7, "RShoulderRoll": -0.15, "RElbowYaw": 1.4, "RElbowRoll": 1.4},
+             {"HeadYaw": -0.35, "HeadPitch": 0.0})
+
+
+def dance_frames(beat=0.6):
+    """About 13 s: disco point right, disco point left, robot pumps, bow out."""
+    frames, t = [], 0.0
+
+    def at(pose):
+        frames.append((round(t, 2), pose))
+
+    disco_right = [merge(L_HAND_ON_HIP, R_POINT_UP, LOOK_UP_RIGHT),
+                   merge(L_HAND_ON_HIP, R_POINT_DOWN, LOOK_DOWN_LEFT)]
+    disco_left = [mirror(p) for p in disco_right]
+    for pose in disco_right * 3 + disco_left * 3:
+        t += beat
+        at(pose)
+    for pose in [PUMP, mirror(PUMP)] * 4:
+        t += beat * 0.75
+        at(pose)
+    t += beat
+    at(merge(ARMS_REST, {"HeadYaw": 0.0, "HeadPitch": 0.35}))  # little nod
+    t += beat
+    at(merge(ARMS_REST, {"HeadYaw": 0.0, "HeadPitch": 0.0}))
+    return frames
+
+
+# Handshake: right arm forward, hand open and upright, palm facing left.
+R_OFFER = {"RShoulderPitch": 0.35, "RShoulderRoll": -0.1, "RElbowYaw": 1.5, "RElbowRoll": 0.45,
+           "RWristYaw": 0.0, "RHand": 1.0}
+
+
+def handshake_frames():
+    """About 9 s: reach out, wait for a hand, light grip, three shakes, let go, arm back down."""
+    rest = {"RShoulderPitch": 1.45, "RShoulderRoll": -0.2, "RElbowYaw": 1.2, "RElbowRoll": 0.5,
+            "RWristYaw": 0.0, "RHand": 0.25}
+    frames = [(1.5, merge(R_OFFER, {"HeadPitch": 0.1})), (3.5, R_OFFER), (4.0, {"RHand": 0.5})]
+    t = 4.0
+    for pitch in (0.2, 0.5) * 3:
+        t += 0.35
+        frames.append((round(t, 2), {"RShoulderPitch": pitch}))
+    frames += [(t + 0.4, {"RShoulderPitch": 0.35}), (t + 1.0, {"RHand": 1.0}),
+               (t + 2.5, merge(rest, {"HeadPitch": 0.0}))]
+    return frames
 
 
 class Robot(object):
@@ -148,8 +246,11 @@ class Robot(object):
         return fut.value()
 
     def _ensure_standing(self):
+        """Wake up and get up first, e.g. when the robot was resting or lying down."""
         if not self.s.motion.robotIsWakeUp():
             self.s.motion.wakeUp()
+            self.s.posture.goToPosture("StandInit", 0.5)
+        elif self._posture_family() not in (None, "Standing"):
             self.s.posture.goToPosture("StandInit", 0.5)
 
     def _move_to(self, x, y, theta, poll, timeout=40):
@@ -235,6 +336,10 @@ class Robot(object):
         return subprocess.check_output(ssh, env=env)
 
     def animate(self, name, poll=None):
+        if name in ROUTINES:
+            self._ensure_standing()
+            getattr(self, "_" + name)(poll)
+            return {"animation": "routine:" + name}
         for path in ANIMATIONS.get(name, []):
             try:
                 fut = self.s.anim.run(path, _async=True)
@@ -275,12 +380,33 @@ class Robot(object):
         fut = m.angleInterpolation(names, angles, times, True, _async=True)
         self._wait(fut, poll, 15)
 
+    def _play(self, frames, poll, timeout=30):
+        names, angles, times = keyframes(frames)
+        fut = self.s.motion.angleInterpolation(names, angles, times, True, _async=True)
+        self._wait(fut, poll, timeout)
+
+    def _stand(self, poll):
+        self._wait(self.s.posture.goToPosture("StandInit", 0.5, _async=True), poll, 30)
+
+    def _dance(self, poll):
+        self._play(dance_frames(), poll)
+        self._stand(poll)
+
+    def _handshake(self, poll):
+        self._play(handshake_frames(), poll)
+        self._stand(poll)
+
     def eyes(self, color):
         self.s.leds.fadeRGB("FaceLeds", hex_to_rgb_int(color), 0.3)
 
     def posture(self, which, poll=None):
+        """stand, rest (crouch, motors off) or lie (on its back, motors on; stand gets it up again)."""
         if which == "rest":
             self.s.motion.rest()
+        elif which == "lie":
+            self.s.motion.wakeUp()
+            fut = self.s.posture.goToPosture("LyingBack", 0.5, _async=True)
+            self._wait(fut, poll, 30)
         else:
             self.s.motion.wakeUp()
             fut = self.s.posture.goToPosture("StandInit", 0.5, _async=True)
@@ -430,6 +556,9 @@ class _SimService(object):
         return call
 
 
+SIM_POSTURE_FAMILIES = {"StandInit": "Standing", "Stand": "Standing", "StandZero": "Standing", "Crouch": "Crouching"}
+
+
 class SimServices(object):
     """Pretends to be a NAO. Walks take time proportional to distance, scaled by `speed`."""
 
@@ -437,6 +566,7 @@ class SimServices(object):
         self.speed = speed
         self.calls = []
         self.awake = False
+        self.family = "Crouching"
         self.life_state = "solitary"
         self.battery_level = 92
         self.lock = threading.Lock()
@@ -459,6 +589,7 @@ class SimServices(object):
                 return 0.3 * s, None, None
             if method == "rest":
                 self.awake = False
+                self.family = "Crouching"
                 return 0.3 * s, None, None
             if method == "getRobotPosition":
                 return 0, [0.0, 0.0, 0.0], None
@@ -467,7 +598,9 @@ class SimServices(object):
             return 0, None, None
         if service == "posture":
             if method == "getPostureFamily":
-                return 0, "Standing", None
+                return 0, self.family, None
+            if method == "goToPosture":
+                self.family = SIM_POSTURE_FAMILIES.get(args[0], args[0])
             return 0.5 * s, True, None
         if service in ("tts", "aspeech") and method == "say":
             return (0.4 + 0.05 * len(args[0])) * s, None, None

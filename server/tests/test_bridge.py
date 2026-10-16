@@ -34,6 +34,10 @@ spec = importlib.util.spec_from_file_location("bridge_mod", BRIDGE_DIR / "bridge
 bridge = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(bridge)
 
+spec = importlib.util.spec_from_file_location("robot_mod", BRIDGE_DIR / "robot.py")
+robot = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(robot)
+
 
 # unit ----------------------------------------------------------------------------
 
@@ -49,7 +53,69 @@ def test_validate_commands():
     assert bridge.validate("nudge", {"dx": 0.2})[1]
     assert bridge.validate("nudge", {"dx": 0.05, "dtheta": -10})[0] == {"cmd": "nudge", "dx": 0.05, "dy": 0.0, "dtheta": -10.0}
     assert bridge.validate("animate", {"name": "dab"})[1]
+    for name in ("dance", "handshake"):
+        assert bridge.validate("animate", {"name": name}) == ({"cmd": "animate", "name": name}, None)
+    assert bridge.validate("animate", {"name": "backflip"})[1]
+    assert bridge.validate("posture", {"posture": "lie"}) == ({"cmd": "posture", "posture": "lie"}, None)
+    assert bridge.validate("posture", {"posture": "handstand"})[1]
     assert bridge.validate("selfdestruct", {})[1]
+
+
+# NAO joint limits (radians) for every joint the routines use.
+JOINT_LIMITS = {
+    "HeadYaw": (-2.0857, 2.0857), "HeadPitch": (-0.6720, 0.5149),
+    "LShoulderPitch": (-2.0857, 2.0857), "RShoulderPitch": (-2.0857, 2.0857),
+    "LShoulderRoll": (-0.3142, 1.3265), "RShoulderRoll": (-1.3265, 0.3142),
+    "LElbowYaw": (-2.0857, 2.0857), "RElbowYaw": (-2.0857, 2.0857),
+    "LElbowRoll": (-1.5446, -0.0349), "RElbowRoll": (0.0349, 1.5446),
+    "RWristYaw": (-1.8238, 1.8238), "RHand": (0.0, 1.0),
+}
+
+
+@pytest.mark.parametrize("frames", [robot.dance_frames(), robot.handshake_frames()], ids=["dance", "handshake"])
+def test_routine_keyframes_are_valid(frames):
+    names, angles, times = robot.keyframes(frames)
+    assert set(names) <= set(JOINT_LIMITS), "routines move only the head and arms"
+    for name, a, t in zip(names, angles, times):
+        lo, hi = JOINT_LIMITS[name]
+        assert all(lo <= x <= hi for x in a), name
+        assert t[0] > 0 and all(t1 > t0 for t0, t1 in zip(t, t[1:])), name
+    assert max(t[-1] for t in times) < 20
+
+
+def test_mirror_swaps_sides():
+    assert robot.mirror({"LShoulderRoll": 0.6, "RElbowYaw": 1.2, "LShoulderPitch": 1.0, "HeadYaw": 0.3}) == {
+        "RShoulderRoll": -0.6, "LElbowYaw": -1.2, "RShoulderPitch": 1.0, "HeadYaw": -0.3}
+
+
+@pytest.mark.parametrize("name", robot.ROUTINES)
+def test_routines_run_on_sim_robot_and_end_standing(name):
+    r = robot.Robot(sim=True, sim_speed=50)
+    r.setup()
+    assert r.animate(name) == {"animation": "routine:" + name}
+    calls = [(svc, m) for svc, m, _ in r.s.calls]
+    assert ("motion", "angleInterpolation") in calls
+    assert calls[-1] == ("posture", "goToPosture") and r.s.calls[-1][2][0] == "StandInit"
+    assert not any(svc == "anim" for svc, _ in calls), "routines do not depend on built-in animations"
+
+
+def test_lie_down_and_get_up_again():
+    r = robot.Robot(sim=True, sim_speed=50)
+    r.setup()
+    r.posture("lie")
+    assert r.s.posture.getPostureFamily() == "LyingBack"
+    r.animate("dance")  # gets up by itself first
+    gotos = [args[0] for svc, m, args in r.s.calls if (svc, m) == ("posture", "goToPosture")]
+    assert gotos[-3:] == ["LyingBack", "StandInit", "StandInit"]
+    r.posture("lie")
+    r.posture("stand")
+    assert r.s.posture.getPostureFamily() == "Standing"
+
+
+def test_routine_can_be_stopped():
+    r = robot.Robot(sim=True, sim_speed=1)
+    with pytest.raises(robot.Stopped):
+        r.animate("dance", poll=lambda: True)
 
 
 def test_state_file_roundtrip(tmp_path):

@@ -33,7 +33,7 @@ NEIGHBOURS = {
     "A": "BD", "B": "ACE", "C": "BF", "D": "AEG", "E": "BDFH", "F": "CEI", "G": "DH", "H": "EGI", "I": "FH",
 }
 HEX = re.compile(r"^#[0-9a-fA-F]{6}$")
-ANIMATION_NAMES = ("think", "win", "lose", "wave")
+ANIMATION_NAMES = ("think", "win", "lose", "wave", "dance", "handshake")
 
 log = logging.getLogger("nao_driver")
 
@@ -70,8 +70,8 @@ def validate(msg):
         if not HEX.match(str(msg.get("color", ""))):
             return "color must be #rrggbb"
     elif cmd == "posture":
-        if msg.get("posture") not in ("stand", "rest"):
-            return "posture must be stand or rest"
+        if msg.get("posture") not in ("stand", "rest", "lie"):
+            return "posture must be stand, rest or lie"
     elif cmd == "nudge":
         try:
             dx, dy, dt = float(msg.get("dx", 0)), float(msg.get("dy", 0)), float(msg.get("dtheta", 0))

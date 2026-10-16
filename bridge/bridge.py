@@ -51,7 +51,7 @@ except ImportError:  # pragma: no cover - bridge copied on its own
 
 log = logging.getLogger("bridge")
 HEX = re.compile(r"^#[0-9a-fA-F]{6}$")
-ANIMATIONS = ("think", "win", "lose", "wave")
+ANIMATIONS = ("think", "win", "lose", "wave", "dance", "handshake")
 # How long the driver may take per command before the bridge gives up on it.
 TIMEOUTS = {"move": 60, "say": 45, "render": 20, "animate": 30, "posture": 30, "nudge": 20, "eyes": 5, "sync": 5, "stop": 10}
 
@@ -79,8 +79,8 @@ def validate(cmd: str, args: dict[str, Any]) -> tuple[dict[str, Any] | None, str
             return None, "color must be #rrggbb"
         return {"cmd": "eyes", "color": args["color"]}, None
     if cmd == "posture":
-        if args.get("posture") not in ("stand", "rest"):
-            return None, "posture must be stand or rest"
+        if args.get("posture") not in ("stand", "rest", "lie"):
+            return None, "posture must be stand, rest or lie"
         return {"cmd": "posture", "posture": args["posture"]}, None
     if cmd == "nudge":
         try:

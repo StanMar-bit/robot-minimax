@@ -197,6 +197,8 @@ Run on one machine, 150 phones cast 486 votes over 3 rounds, all counted exactly
 ## Not yet tested on the robot
 
 - The built-in NAO animation names in `bridge/robot.py`. If an animation is missing, the driver falls back to simple joint gestures.
+- The `dance` and `handshake` routines in `bridge/robot.py`: joint keyframes for the head and arms only, so the feet stay on the floor. The handshake holds the right hand out for 2 s, grips lightly (half closed), shakes three times and lets go. Check the arm angles and grip on the robot before offering your own hand to it.
+- Lying down (`Lie down` in the admin panel, NAOqi posture `LyingBack`) and getting up again with `Stand`. A walk or animation also makes the robot get up first. Leave room behind the robot.
 - Walking accuracy on the real floor, and the choice between strafe and turn.
 - Speech volume in the hall.
 

@@ -31,7 +31,7 @@ from .robot_link import RobotLink
 log = logging.getLogger("server")
 
 HEX_COLOR = re.compile(r"^#[0-9a-fA-F]{6}$")
-ANIMATIONS = ("think", "win", "lose", "wave")
+ANIMATIONS = ("think", "win", "lose", "wave", "dance", "handshake")
 NO_CACHE = {"Cache-Control": "no-cache"}
 
 
@@ -366,8 +366,8 @@ def create_app(cfg: Config | None = None) -> socketio.ASGIApp:
             flow._eyes = color  # keep the flow's "last colour sent" in step
             return {"cmd_id": await robot.send("eyes", color=color)}
         if cmd == "posture":
-            if args.get("posture") not in ("stand", "rest"):
-                raise ValueError("posture must be stand or rest")
+            if args.get("posture") not in ("stand", "rest", "lie"):
+                raise ValueError("posture must be stand, rest or lie")
             return {"cmd_id": await robot.send("posture", posture=args["posture"])}
         if cmd == "nudge":
             dx, dy, dtheta = (float(args.get(k, 0)) for k in ("dx", "dy", "dtheta"))

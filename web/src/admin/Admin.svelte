@@ -284,7 +284,8 @@
         <div class="row">
           <button onclick={() => robot('posture', { posture: 'stand' })}>Stand</button>
           <button onclick={() => robot('posture', { posture: 'rest' })}>Rest</button>
-          {#each ['think', 'win', 'lose', 'wave'] as a (a)}<button onclick={() => robot('animate', { name: a })}>{a}</button>{/each}
+          <button onclick={() => robot('posture', { posture: 'lie' })}>Lie down</button>
+          {#each ['think', 'win', 'lose', 'wave', 'dance', 'handshake'] as a (a)}<button onclick={() => robot('animate', { name: a })}>{a}</button>{/each}
         </div>
         <div class="row">
           <span class="muted">Eyes:</span>

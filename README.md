@@ -43,6 +43,22 @@ The board can also replay a full search from the root, with minimax or with alph
 
 ![Alpha-beta replay with pruned branches](docs/screenshots/board-alphabeta.png)
 
+## Playground for students (GitHub Pages)
+
+After the lecture, students can play the same game at home without the robot or the server: <https://stanmar-bit.github.io/robot-minimax/>. It runs entirely in the browser.
+
+![Playground: alpha-beta replay of game 2, stepped to a prune](docs/screenshots/playground.png)
+
+- **Play** game 1, game 2 or a custom game. Each side, MAX and MIN, is played by a human or by the computer, so a student can play the robot, play a friend on one screen, or watch the computer play itself.
+- **Custom games:** a 3×3, 3×4, 4×3 or 4×4 grid, any start cell, any number of cups, and blocked cells the robot can't enter. The editor shows the size and value of the tree while you build it.
+- **The game tree** is drawn as on the board, with the played path and the same Hidden / Leaves / All value settings. Click any node to jump to that position. Big trees scroll and zoom.
+- **Step through the search:** the computer's own search is animated on its turn. *Replay search* runs minimax or alpha-beta from the current position or from the start. You can play, pause, step back and forward (← and →), and change the speed. Each step is described in words, for example "Prune ABEF (3 nodes): α ≥ β at ABE, so MIN will never let the game reach ABE".
+- **Share a game:** the URL holds the setup, the players and the algorithm, so **Copy link to this game** gives students exactly the position from the slides, for example `#size=4x4&start=A&cups=HP&blocked=FK`.
+
+`web/src/lib/game.js` is a JavaScript port of the server's engine and search, and it produces the same trees and traces. `npm test` in `web/` checks it.
+
+To publish the playground, set *Settings → Pages → Source* to **GitHub Actions** once. After that, `.github/workflows/pages.yml` deploys it on every push to `main`. The lecture server serves the playground too, at `/play`. To try it locally, run `npm run dev` in `web/` and open <http://localhost:5173/play>.
+
 ## Features
 
 - **Board** (`/board`, for the projector):
@@ -85,7 +101,7 @@ The robot network never has to be reachable from the internet. The NAOqi SDK nee
 
 ```
 server/   game engine, minimax/alpha-beta with trace, game flow, SQLite, Socket.IO, bridge API
-web/      Vite + Svelte 5: phone, board and admin pages
+web/      Vite + Svelte 5: phone, board and admin pages, and the offline playground
 bridge/   bridge.py (Python 3), nao_driver.py + robot.py (Python 2.7, NAOqi), fake_driver.py
 tools/    loadtest.py (simulated phones)
 deploy/   docker-compose.yml for a VPS behind Traefik

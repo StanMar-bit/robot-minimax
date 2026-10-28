@@ -258,6 +258,10 @@ def create_app(cfg: Config | None = None) -> socketio.ASGIApp:
     async def admin_page():
         return page("admin.html")
 
+    @api.get("/play")
+    async def play_page():
+        return page("play.html")
+
     if static and (static / "assets").is_dir():
         api.mount("/assets", StaticFiles(directory=static / "assets"), name="assets")
     if static:

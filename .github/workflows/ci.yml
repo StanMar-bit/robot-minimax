@@ -30,7 +30,7 @@ jobs:
           cache: npm
           cache-dependency-path: web/package-lock.json
       - working-directory: web
-        run: npm ci && npm run build
+        run: npm ci && npm test && npm run build && npm run build:pages
 
   image:
     # Publish ghcr.io/<owner>/robot-minimax on every push to main, and as :<version> for a v* tag.

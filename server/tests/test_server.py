@@ -85,8 +85,9 @@ async def test_healthz_and_pages(server):
     async with httpx.AsyncClient(base_url=server) as http:
         r = await http.get("/healthz")
         assert r.status_code == 200 and r.json()["ok"]
-        r = await http.get("/board")
-        assert r.status_code == 503  # frontend not built in this test
+        for page in ("/board", "/play"):
+            r = await http.get(page)
+            assert r.status_code == 503  # frontend not built in this test
 
 
 async def test_admin_token_required(server):

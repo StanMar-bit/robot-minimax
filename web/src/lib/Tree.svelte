@@ -14,6 +14,8 @@
     values = 'hidden',
     colors = { MAX: '#2563eb', MIN: '#ea580c' },
     toMove = null,
+    step = null, // show the first `step` trace events instead of following the clock
+    onnode = null, // click handler for nodes, called with the node
   } = $props();
 
   let width = $state(1000);
@@ -71,7 +73,8 @@
     if (!search?.trace?.length) return null;
     const tr = search.trace;
     const elapsed = Math.max(0, now - search.started_at);
-    const upto = Math.min(tr.length, Math.floor(elapsed / Math.max(1, search.step_ms)) + 1);
+    const upto =
+      step !== null ? Math.min(tr.length, step) : Math.min(tr.length, Math.floor(elapsed / Math.max(1, search.step_ms)) + 1);
     const st = { vals: new Map(), ab: new Map(), visited: new Set(), pruned: [], stack: [], last: null };
     for (let i = 0; i < upto; i++) {
       const e = tr[i];
@@ -167,8 +170,16 @@
         {@const vote = votingChildren.get(n.id)}
         {@const pruned = isPruned(n.id)}
         {@const waiting = anim && !anim.done && inSearch(n.id) && !anim.visited.has(n.id) && !pruned}
+        <!-- svelte-ignore a11y_no_noninteractive_tabindex (role is "button" exactly when nodes are clickable) -->
         <g
           class="node"
+          data-id={n.id}
+          class:pick={!!onnode}
+          role={onnode ? 'button' : undefined}
+          tabindex={onnode ? 0 : undefined}
+          aria-label={onnode ? `Position ${n.id}` : undefined}
+          onclick={() => onnode?.(n)}
+          onkeydown={(e) => onnode && (e.key === 'Enter' || e.key === ' ') && (e.preventDefault(), onnode(n))}
           class:off={!reachable}
           class:path={onPath}
           class:pruned
@@ -277,6 +288,17 @@
   .node .cell {
     fill: #3f3f46;
     font-weight: 400;
+  }
+  .node.pick {
+    cursor: pointer;
+  }
+  .node.pick:hover .box,
+  .node.pick:focus-visible .box {
+    stroke: var(--accent, #3730a3);
+    stroke-width: 3.5;
+  }
+  .node:focus-visible {
+    outline: none;
   }
   .node.off {
     opacity: 0.22;

@@ -224,14 +224,6 @@ python tools/loadtest.py --url http://127.0.0.1:8000 --admin-token dev --clients
 
 Run on one machine, 150 phones cast 486 votes over 3 rounds, all counted exactly once. The board update p95 was 6 ms. Real networks are slower, so test in the lecture hall itself.
 
-## Not yet tested on the robot
-
-- The built-in NAO animation names in `bridge/robot.py`. If an animation is missing, the driver falls back to simple joint gestures.
-- The `dance` and `handshake` routines in `bridge/robot.py`: joint keyframes for the head and arms only, so the feet stay on the floor. The handshake holds the right hand out for 2 s, grips lightly (half closed), shakes three times and lets go. Check the arm angles and grip on the robot before offering your own hand to it.
-- Lying down (`Lie down` in the admin panel, NAOqi posture `LyingBack`) and getting up again with `Stand`. A walk or animation also makes the robot get up first. Leave room behind the robot.
-- Walking accuracy on the real floor, and the choice between strafe and turn.
-- Speech volume in the hall.
-
 ## Note on the lecture slides
 
 The game 2 tree on the lecture slides leaves out two branches, A‑B‑E‑H‑G‑D and A‑D‑G‑H‑E‑F‑C‑B. Both end in a draw and change no value. The board draws the full tree, so it has 51 nodes where the slides show 47.

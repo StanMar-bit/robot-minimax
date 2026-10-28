@@ -15,11 +15,9 @@ Flip --row-sign / --col-sign if the grid is taped the other way round.
 from __future__ import division, print_function
 
 import base64
-import itertools
 import logging
 import math
 import os
-import subprocess
 import threading
 import time
 
@@ -40,6 +38,7 @@ ANIMATIONS = {
 ANIMATION_TAGS = {"think": "thinking", "win": "happy", "lose": "sad", "wave": "hello"}
 # Moves choreographed here with joint keyframes instead of built-in animations.
 ROUTINES = ("dance", "handshake")
+HALL_WAV = "/home/nao/.hall-speech.wav"  # render() target; ALFileManager can only read under /home/nao
 LEG_JOINTS = ["LHipYawPitch", "LHipRoll", "LHipPitch", "LKneePitch", "LAnklePitch", "LAnkleRoll",
               "RHipRoll", "RHipPitch", "RKneePitch", "RAnklePitch", "RAnkleRoll"]
 
@@ -178,10 +177,8 @@ def handshake_frames():
 class Robot(object):
     def __init__(self, ip="192.168.50.10", port=9559, cell_size=0.5, walk="strafe", row_sign=1, col_sign=1,
                  sim=False, volume=None, move_config=None, temp_warn=70.0, battery_warn=30,
-                 odometry_log=None, sim_speed=1.0, ssh_user="nao", ssh_password=None):
+                 odometry_log=None, sim_speed=1.0):
         self.ip, self.port = ip, port
-        self.ssh_user, self.ssh_password = ssh_user, ssh_password
-        self._render_ids = itertools.count(1)
         self.cell_size = cell_size
         self.walk = walk
         self.row_sign, self.col_sign = row_sign, col_sign
@@ -315,25 +312,13 @@ class Robot(object):
         board in the hall. Same voice and settings as say(). Returns {"wav": None} in sim mode."""
         if self.sim:
             return {"wav": None}
-        path = "/tmp/hall-%d-%d.wav" % (os.getpid(), next(self._render_ids))
         t0 = time.time()
-        self.s.tts.sayToFile(text, path)
+        self.s.tts.sayToFile(text, HALL_WAV)
         t1 = time.time()
-        wav = self._ssh("cat %s && rm -f %s" % (path, path))
+        # ALFileManager reads from /home/nao; the next render overwrites the file, so nothing piles up.
+        wav = bytes(self.s.files.getFileContents(os.path.basename(HALL_WAV)))
         log.info("rendered %d bytes of speech in %.2f s, fetched in %.2f s", len(wav), t1 - t0, time.time() - t1)
         return {"wav": base64.b64encode(wav).decode("ascii")}
-
-    def _ssh(self, command):
-        """Run a command on the robot over SSH and return its output. The connection stays open
-        for 10 minutes (ControlPersist), so later calls skip the SSH handshake."""
-        ssh = ["ssh", "-o", "StrictHostKeyChecking=accept-new", "-o", "ConnectTimeout=5",
-               "-o", "ControlMaster=auto", "-o", "ControlPath=/tmp/nao-ssh-%r@%h:%p", "-o", "ControlPersist=600",
-               "%s@%s" % (self.ssh_user, self.ip), command]
-        env = None
-        if self.ssh_password:
-            ssh = ["sshpass", "-e"] + ssh
-            env = dict(os.environ, SSHPASS=self.ssh_password)
-        return subprocess.check_output(ssh, env=env)
 
     def animate(self, name, poll=None):
         if name in ROUTINES:
@@ -510,6 +495,7 @@ class QiServices(object):
         self.battery = get("ALBattery")
         self.memory = get("ALMemory")
         self.audio = get("ALAudioDevice")
+        self.files = get("ALFileManager")
 
 
 # --------------------------------------------------------------------------------

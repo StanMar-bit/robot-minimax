@@ -175,9 +175,8 @@ The admin panel then shows **bridge online** and the battery level; switch to **
 | `--odometry-log drift.csv` | expected vs. measured displacement per move, for the drift test |
 | `--max-step-x`, `--step-frequency`, `--volume` | gait and speaker tuning |
 | `--sdk PATH` | NAOqi SDK location (default `$NAOQI_SDK`, then `~/nao/pynaoqi-…`) |
-| `--ssh-user nao`, `--ssh-password nao` | SSH login on the robot, used to fetch its speech for the hall (password also from `$NAO_SSH_PASSWORD`) |
 
-**Robot voice in the hall.** With *Also play the robot's voice on the board* on (admin settings, on by default), the bridge first renders every line on the robot with `ALTextToSpeech.sayToFile`, fetches the WAV over SSH, and uploads it as MP3 (when `ffmpeg` is installed). The board plays it while the robot says the same line, so the lecture-hall speakers carry the NAO's own voice. This adds about half a second before each new line; repeated lines are cached by the bridge. Click **Enable robot voice** on the board once after opening it, since browsers block sound until the page has been clicked.
+**Robot voice in the hall.** With *Also play the robot's voice on the board* on (admin settings, on by default), the bridge first renders every line on the robot with `ALTextToSpeech.sayToFile`, fetches the WAV through NAOqi's `ALFileManager` (no SSH needed), and uploads it as MP3 (when `ffmpeg` is installed). The board plays it while the robot says the same line, so the lecture-hall speakers carry the NAO's own voice. This adds about half a second before each new line; repeated lines are cached by the bridge. Click **Enable robot voice** on the board once after opening it, since browsers block sound until the page has been clicked.
 
 The driver connects with a `qi.Session` client rather than `ALProxy`. An `ALProxy` starts a local NAOqi broker that listens on every network interface of the laptop; a `qi.Session` client opens no listening port.
 

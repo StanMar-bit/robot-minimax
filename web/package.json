@@ -6,6 +6,8 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
+    "build:pages": "vite build --mode pages && cp dist-pages/play.html dist-pages/index.html",
+    "test": "node --test 'src/**/*.test.js'",
     "preview": "vite preview"
   },
   "dependencies": {

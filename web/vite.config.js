@@ -6,8 +6,8 @@ import { defineConfig, searchForWorkspaceRoot } from 'vite';
 const here = fileURLToPath(new URL('.', import.meta.url));
 const backend = process.env.BACKEND_URL || 'http://localhost:8000';
 
-// In dev, serve /board and /admin like the Python server does.
-const pages = { '/board': '/board.html', '/admin': '/admin.html' };
+// In dev, serve /board, /admin and /play like the Python server does.
+const pages = { '/board': '/board.html', '/admin': '/admin.html', '/play': '/play.html' };
 const pageRoutes = {
   name: 'page-routes',
   configureServer(server) {
@@ -24,16 +24,24 @@ try {
   nodeModules = realpathSync(nodeModules); // node_modules may be a symlink out of the synced folder
 } catch {}
 
-export default defineConfig({
+// `vite build --mode pages` builds only the playground, with relative asset paths,
+// as a static site for GitHub Pages (see .github/workflows/pages.yml).
+export default defineConfig(({ mode }) => ({
   plugins: [svelte(), pageRoutes],
+  base: mode === 'pages' ? './' : '/',
   build: {
     target: ['es2020', 'safari15', 'chrome100', 'firefox100'],
+    outDir: mode === 'pages' ? 'dist-pages' : 'dist',
     rolldownOptions: {
-      input: {
-        index: here + 'index.html',
-        board: here + 'board.html',
-        admin: here + 'admin.html',
-      },
+      input:
+        mode === 'pages'
+          ? { play: here + 'play.html' }
+          : {
+              index: here + 'index.html',
+              board: here + 'board.html',
+              admin: here + 'admin.html',
+              play: here + 'play.html',
+            },
     },
   },
   server: {
@@ -45,4 +53,4 @@ export default defineConfig({
       '/admin/api': backend,
     },
   },
-});
+}));

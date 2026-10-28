@@ -1,9 +1,12 @@
 <script>
-  // 3×3 grid mirror: visited cells, cups, the path so far and the robot.
-  const CELLS = 'ABCDEFGHI';
-
+  // Grid mirror: visited cells, cups, the path so far and the robot.
+  // 3×3 on the board; the playground also uses other sizes and blocked cells.
   let {
     setup = { cups: [], start: 'A' },
+    rows = 3,
+    cols = 3,
+    blocked = [],
+    startMark = false,
     path = [],
     robotCell = null,
     options = [],
@@ -20,9 +23,10 @@
     label = 'Game grid',
   } = $props();
 
+  const CELLS = $derived(Array.from({ length: rows * cols }, (_, i) => String.fromCharCode(65 + i)));
   const pos = (cell) => {
     const i = CELLS.indexOf(cell);
-    return { x: (i % 3) * 100, y: Math.floor(i / 3) * 100 };
+    return { x: (i % cols) * 100, y: Math.floor(i / cols) * 100 };
   };
   const center = (cell) => {
     const p = pos(cell);
@@ -44,7 +48,7 @@
   }
 </script>
 
-<svg viewBox="-4 -4 308 308" role="img" aria-label={label} class="grid">
+<svg viewBox="-4 -4 {cols * 100 + 8} {rows * 100 + 8}" role="img" aria-label={label} class="grid">
   {#each CELLS as cell (cell)}
     {@const p = pos(cell)}
     {@const isOption = options.includes(cell)}
@@ -66,6 +70,7 @@
         height="100"
         class="bg"
         class:visited={visited.has(cell) && cell !== current}
+        class:blocked={blocked.includes(cell)}
         fill={isMarked ? markColor : isOption ? optionColor : undefined}
         fill-opacity={isMarked ? 0.25 : isOption ? (winner === cell ? 0.45 : 0.16) : undefined}
       />
@@ -82,16 +87,24 @@
           class:pulse={!winner}
         />
       {/if}
-      <text x={p.x + 7} y={p.y + 28} class="letter">{cell}</text>
+      {#if blocked.includes(cell)}
+        <path d="M{p.x + 22},{p.y + 22} L{p.x + 78},{p.y + 78} M{p.x + 78},{p.y + 22} L{p.x + 22},{p.y + 78}" class="block-x" />
+      {/if}
+      {#if startMark && cell === setup.start}
+        <text x={p.x + 93} y={p.y + 28} class="start" text-anchor="end">start</text>
+      {/if}
+      <text x={p.x + 7} y={p.y + 28} class="letter" class:on-dark={blocked.includes(cell)}>{cell}</text>
       {#if counts && counts[cell] !== undefined}
         <text x={p.x + 93} y={p.y + 92} class="count" text-anchor="end">{counts[cell]}</text>
       {/if}
     </g>
   {/each}
 
-  {#each [0, 1, 2, 3] as i (i)}
-    <line x1={i * 100} y1="0" x2={i * 100} y2="300" class="rule" />
-    <line x1="0" y1={i * 100} x2="300" y2={i * 100} class="rule" />
+  {#each { length: cols + 1 } as _, i (i)}
+    <line x1={i * 100} y1="0" x2={i * 100} y2={rows * 100} class="rule" />
+  {/each}
+  {#each { length: rows + 1 } as _, i (i)}
+    <line x1="0" y1={i * 100} x2={cols * 100} y2={i * 100} class="rule" />
   {/each}
 
   {#if showPath && path.length > 1}
@@ -141,6 +154,21 @@
   }
   .bg.visited {
     fill: var(--visited, #d4d4d8);
+  }
+  .bg.blocked {
+    fill: var(--blocked, #52525b);
+  }
+  .letter.on-dark {
+    fill: #f4f4f5;
+  }
+  .block-x {
+    stroke: #a1a1aa;
+    stroke-width: 6;
+    stroke-linecap: round;
+  }
+  .start {
+    font: 600 15px/1 var(--font, system-ui, sans-serif);
+    fill: var(--muted, #6b7280);
   }
   .rule {
     stroke: var(--ink, #111);

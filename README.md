@@ -139,9 +139,22 @@ For frontend work with hot reload, run `npm run dev` in `web/` (port 5173, proxi
 
 The laptop needs:
 
-- the NAOqi Python SDK 2.8 (`pynaoqi-python2.7-…`), which is not included in this repository;
+- the NAOqi Python SDK 2.8 (`pynaoqi-python2.7-…`), which is not included in this repository (see below);
 - a Python 2.7 environment with `pyzmq`;
 - Python 3 with `requests` and `pyzmq`.
+
+### Getting the NAOqi SDK
+
+The demo was built and tested with `pynaoqi-python2.7-2.8.6.23-linux64`, which we received from the university's robotics lab. It is a patched build (an extra Boost include, the [boost-python fix](https://github.com/boostorg/python/pull/159) for `import qi`, and a `config.cmake` for boost_random). The SDK is proprietary and about 1.2 GB unpacked, so it is not in this repository. If you need this exact copy, ask the robotics lab or the course TAs and we can provide it.
+
+Aldebaran has shut down, but before closing it published the SDK on GitHub: [aldebaran/nao6-doc-sdk](https://github.com/aldebaran/nao6-doc-sdk) contains [`pynaoqi-python2.7-2.8.7.4-linux64-20210819_141148.tar.gz`](https://github.com/aldebaran/nao6-doc-sdk/raw/master/pynaoqi-python2.7-2.8.7.4-linux64-20210819_141148.tar.gz) (about 200 MB). That is a newer, unpatched version which has not been tested with this demo yet.
+
+Unpack the SDK to `~/nao/`. The driver looks for it via `--sdk`, then `$NAOQI_SDK`, then `~/nao/pynaoqi-python2.7-2.8.6.23-linux64`, then next to the project folder. With a different version, point to it explicitly:
+
+```bash
+export NAOQI_SDK=~/nao/pynaoqi-python2.7-2.8.7.4-linux64-20210819_141148
+conda run -n nao python -c "import sys, os; sys.path.append(os.path.join(os.environ['NAOQI_SDK'], 'lib/python2.7/site-packages')); import qi; print('qi OK')"
+```
 
 ```bash
 # terminal 1: driver (Python 2.7); talks only to the robot and to localhost

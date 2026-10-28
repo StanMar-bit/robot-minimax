@@ -4,6 +4,8 @@ A live classroom demo of adversarial search with a NAO robot. Students vote on t
 
 Built for the *Adversarial Search and Games* lecture of an introductory AI course, for a hall of about 100 students.
 
+**▶ Try the playground: <https://stanmar-bit.github.io/robot-minimax/>**. Play the game in your browser, without the robot, and step through minimax and alpha-beta on the game tree. See [Playground for students](#playground-for-students-github-pages).
+
 ![Board view while the robot searches the game tree](docs/screenshots/board-search.png)
 
 ## The game
